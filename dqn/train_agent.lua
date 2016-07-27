@@ -78,7 +78,7 @@ local nepisodes
 local episode_reward
 
 local screen, reward, terminal = game_env:getState()
-
+print(screen)
 local win = image.display({image=screen})
 
 print("Iteration ..", step)

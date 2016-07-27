@@ -243,9 +243,6 @@ function nql:qLearnMinibatch()
     assert(self.transitions:size() > self.minibatch_size)
 
     local s, a, r, s2, term = self.transitions:sample(self.minibatch_size)
-    print('a is .... here')
-    print(a)
-
     local targets, delta, q2_max = self:getQUpdate{s=s, a=a, r=r, s2=s2,
         term=term, update_qmax=true}
 
