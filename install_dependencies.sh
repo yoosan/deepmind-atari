@@ -11,82 +11,84 @@ TOPDIR=$PWD
 PREFIX=$PWD/torch
 echo "Installing Torch into: $PREFIX"
 
-if [[ `uname` != 'Linux' ]]; then
-  echo 'Platform unsupported, only available for Linux'
+if [[ `uname` != 'Linux' ] && `uname` != 'Darwin']; then
+  echo 'Platform unsupported, available for Linux or Mac'
   exit
 fi
-if [[ `which apt-get` == '' ]]; then
-    echo 'apt-get not found, platform not supported'
+if [[ `which apt-get` == '' ] && `which brew` == '']; then
+    echo 'apt-get or brew not found, platform not supported'
     exit
 fi
 
 # Install dependencies for Torch:
-sudo apt-get update
-sudo apt-get install -qqy build-essential
-sudo apt-get install -qqy gcc g++
-sudo apt-get install -qqy cmake
-sudo apt-get install -qqy curl
-sudo apt-get install -qqy libreadline-dev
-sudo apt-get install -qqy git-core
-sudo apt-get install -qqy libjpeg-dev
-sudo apt-get install -qqy libpng-dev
-sudo apt-get install -qqy ncurses-dev
-sudo apt-get install -qqy imagemagick
-sudo apt-get install -qqy unzip
-sudo apt-get update
+if [[`uname` == 'Linux']]; then
+  sudo apt-get update
+  sudo apt-get install -qqy build-essential
+  sudo apt-get install -qqy gcc g++
+  sudo apt-get install -qqy cmake
+  sudo apt-get install -qqy curl
+  sudo apt-get install -qqy libreadline-dev
+  sudo apt-get install -qqy git-core
+  sudo apt-get install -qqy libjpeg-dev
+  sudo apt-get install -qqy libpng-dev
+  sudo apt-get install -qqy ncurses-dev
+  sudo apt-get install -qqy imagemagick
+  sudo apt-get install -qqy unzip
+  sudo apt-get update
+
+  echo "==> Torch7's dependencies have been installed"
+
+  # Build and install Torch7
+  cd /tmp
+  rm -rf luajit-rocks
+  git clone https://github.com/torch/luajit-rocks.git
+  cd luajit-rocks
+  mkdir -p build
+  cd build
+  git checkout master; git pull
+  rm -f CMakeCache.txt
+  cmake .. -DCMAKE_INSTALL_PREFIX=$PREFIX -DCMAKE_BUILD_TYPE=Release
+  RET=$?; if [ $RET -ne 0 ]; then echo "Error. Exiting."; exit $RET; fi
+  make
+  RET=$?; if [ $RET -ne 0 ]; then echo "Error. Exiting."; exit $RET; fi
+  make install
+  RET=$?; if [ $RET -ne 0 ]; then echo "Error. Exiting."; exit $RET; fi
 
 
-echo "==> Torch7's dependencies have been installed"
+  path_to_nvcc=$(which nvcc)
+  if [ -x "$path_to_nvcc" ]
+  then
+      cutorch=ok
+      cunn=ok
+  fi
 
+  # Install base packages:
+  $PREFIX/bin/luarocks install cwrap
+  $PREFIX/bin/luarocks install paths
+  $PREFIX/bin/luarocks install torch
+  $PREFIX/bin/luarocks install nn
 
+  [ -n "$cutorch" ] && \
+  ($PREFIX/bin/luarocks install cutorch)
+  [ -n "$cunn" ] && \
+  ($PREFIX/bin/luarocks install cunn)
 
+  $PREFIX/bin/luarocks install luafilesystem
+  $PREFIX/bin/luarocks install penlight
+  $PREFIX/bin/luarocks install sys
+  $PREFIX/bin/luarocks install xlua
+  $PREFIX/bin/luarocks install image
+  $PREFIX/bin/luarocks install env
 
+  echo ""
+  echo "=> Torch7 has been installed successfully"
+  echo ""
 
-# Build and install Torch7
-cd /tmp
-rm -rf luajit-rocks
-git clone https://github.com/torch/luajit-rocks.git
-cd luajit-rocks
-mkdir -p build
-cd build
-git checkout master; git pull
-rm -f CMakeCache.txt
-cmake .. -DCMAKE_INSTALL_PREFIX=$PREFIX -DCMAKE_BUILD_TYPE=Release
-RET=$?; if [ $RET -ne 0 ]; then echo "Error. Exiting."; exit $RET; fi
-make
-RET=$?; if [ $RET -ne 0 ]; then echo "Error. Exiting."; exit $RET; fi
-make install
-RET=$?; if [ $RET -ne 0 ]; then echo "Error. Exiting."; exit $RET; fi
-
-
-path_to_nvcc=$(which nvcc)
-if [ -x "$path_to_nvcc" ]
-then
-    cutorch=ok
-    cunn=ok
+elif [[`uname` == 'Darwin']]; then
+  git clone https://github.com/torch/distro.git $PREFIX --recursive
+  cd $PREFIX; bash install-deps;
+  ./install.sh
 fi
-
-# Install base packages:
-$PREFIX/bin/luarocks install cwrap
-$PREFIX/bin/luarocks install paths
-$PREFIX/bin/luarocks install torch
-$PREFIX/bin/luarocks install nn
-
-[ -n "$cutorch" ] && \
-($PREFIX/bin/luarocks install cutorch)
-[ -n "$cunn" ] && \
-($PREFIX/bin/luarocks install cunn)
-
-$PREFIX/bin/luarocks install luafilesystem
-$PREFIX/bin/luarocks install penlight
-$PREFIX/bin/luarocks install sys
-$PREFIX/bin/luarocks install xlua
-$PREFIX/bin/luarocks install image
-$PREFIX/bin/luarocks install env
-
-echo ""
-echo "=> Torch7 has been installed successfully"
-echo ""
 
 
 echo "Installing nngraph ... "
@@ -95,7 +97,9 @@ RET=$?; if [ $RET -ne 0 ]; then echo "Error. Exiting."; exit $RET; fi
 echo "nngraph installation completed"
 
 echo "Installing Xitari ... "
-cd /tmp
+cd $PREFIX
+mkdir -p tmp
+cd tmp
 rm -rf xitari
 git clone https://github.com/deepmind/xitari.git
 cd xitari
@@ -104,13 +108,16 @@ RET=$?; if [ $RET -ne 0 ]; then echo "Error. Exiting."; exit $RET; fi
 echo "Xitari installation completed"
 
 echo "Installing Alewrap ... "
-cd /tmp
+cd ..
 rm -rf alewrap
 git clone https://github.com/deepmind/alewrap.git
 cd alewrap
 $PREFIX/bin/luarocks make
 RET=$?; if [ $RET -ne 0 ]; then echo "Error. Exiting."; exit $RET; fi
 echo "Alewrap installation completed"
+
+cd $PREFIX
+rm -rf tmp
 
 echo
 echo "You can run experiments by executing: "
