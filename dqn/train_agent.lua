@@ -35,7 +35,6 @@ cmd:option('-prog_freq', 5*10^3, 'frequency of progress output')
 cmd:option('-save_freq', 5*10^4, 'the model is saved every save_freq steps')
 cmd:option('-eval_freq', 10^4, 'frequency of greedy evaluation')
 cmd:option('-save_versions', 0, '')
-cmd:option('-render', true, 'rendering the game states')
 
 cmd:option('-steps', 10^5, 'number of training steps to perform')
 cmd:option('-eval_steps', 10^5, 'number of evaluation steps')
@@ -52,7 +51,6 @@ local opt = cmd:parse(arg)
 --- General setup.
 local game_env, game_actions, agent, opt = setup(opt)
 
-local net = agent.network
 -- override print to always flush the output
 local old_print = print
 local print = function(...)
@@ -78,10 +76,9 @@ local nepisodes
 local episode_reward
 
 local screen, reward, terminal = game_env:getState()
-print(screen)
-local win = image.display({image=screen})
 
 print("Iteration ..", step)
+local win = nil
 while step < opt.steps do
     step = step + 1
     local action_index = agent:perceive(reward, screen, terminal)
@@ -97,9 +94,8 @@ while step < opt.steps do
         end
     end
 
-    if opt.render then
-        local win = image.display({image=screen, win=win})
-    end
+    -- display screen
+    win = image.display({image=screen, win=win})
 
     if step % opt.prog_freq == 0 then
         assert(step==agent.numSteps, 'trainer step: ' .. step ..
@@ -126,6 +122,9 @@ while step < opt.steps do
 
             -- Play game in test mode (episodes don't end when losing a life)
             screen, reward, terminal = game_env:step(game_actions[action_index])
+
+            -- display screen
+            win = image.display({image=screen, win=win})
 
             if estep%1000 == 0 then collectgarbage() end
 
@@ -183,7 +182,7 @@ while step < opt.steps do
         local s, a, r, s2, term = agent.valid_s, agent.valid_a, agent.valid_r,
             agent.valid_s2, agent.valid_term
         agent.valid_s, agent.valid_a, agent.valid_r, agent.valid_s2,
-        agent.valid_term, _, _ = nil, nil, nil, nil, nil, nil, nil
+            agent.valid_term = nil, nil, nil, nil, nil, nil, nil
         local w, dw, g, g2, delta, delta2, deltas, tmp = agent.w, agent.dw,
             agent.g, agent.g2, agent.delta, agent.delta2, agent.deltas, agent.tmp
         agent.w, agent.dw, agent.g, agent.g2, agent.delta, agent.delta2,
